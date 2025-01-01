@@ -43,6 +43,7 @@ This repository is packed with:
 - ❗ Add **pagination** to the Todo List Get API
 - ❗ Add **Error handling** with HTTP status codes
 - ❗ Write **tests** for functionalities
+- ❗ Add **Front end** to compelete project
 
 ---
 
