@@ -26,19 +26,15 @@ This repository is packed with:
 
 ---
 
-## 🔗 Explore the Repository
-
-You can find all these features and more in the **ToDoList** repository on GitHub. Feel free to explore, fork, and contribute!
-👉 [GitHub Repository](https://lnkd.in/dhGNttHE)
-
----
-
-## 🤝 Get Involved!
-
-Contributions, feedback, and suggestions are highly welcome! Let’s collaborate to make **ToDoList** better.
-
----
-
+</ol>
+    <h2 id="features">Features</h2>
+    <ul>
+        <li><strong>View ToDo List:</strong> Users can view a list of existing ToDo items.</li>
+        <li><strong>Create ToDo Items:</strong> Users can create new ToDo items.</li>
+        <li><strong>View Details:</strong> Users can view details of a specific ToDo item.</li>
+        <li><strong>Edit ToDo Items:</strong> Users can edit existing ToDo items.</li>
+        <li><strong>Delete ToDo Items:</strong> Users can delete ToDo items after confirmation.</li>
+    </ul>
 ## 🔶 Problems to Solve:
 
 💠 There are lots of techniques that can be used in this project. Willing to contribute? Check the list below, then make a merge request and we can have a meeting to discuss:
@@ -50,12 +46,9 @@ Contributions, feedback, and suggestions are highly welcome! Let’s collaborate
 - ❗ Add **pagination** to the Todo List Get API
 - ❗ Add **Error handling** with HTTP status codes
 - ❗ Write **tests** for functionalities
-- ❗ Refactor to **n-layer architecture**
 
 ---
 
-✅ If you want to take on these tasks but need guidance, feel free to contact me, and we can work together.
 
 ---
 
-hashtag#dotnet hashtag#OOP hashtag#SOLID hashtag#DDD hashtag#SoftwareDevelopment hashtag#GitHub hashtag#SoftwareEngineering hashtag#Swagger hashtag#APIDevelopment
