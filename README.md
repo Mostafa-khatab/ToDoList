@@ -19,10 +19,8 @@ This repository is packed with:
 - **SQL Server**
 - **JWT Token**
 - **User Management**
-- **Access Level**
 - **API documentation** with Swagger
 - **Dependency Injection (DI)**
-- **Factory Method** Design Pattern
 
 ---
 
@@ -35,13 +33,12 @@ This repository is packed with:
         <li><strong>Edit ToDo Items:</strong> Users can edit existing ToDo items.</li>
         <li><strong>Delete ToDo Items:</strong> Users can delete ToDo items after confirmation.</li>
     </ul>
+    </ol>
+    
 ## 🔶 Problems to Solve:
 
 💠 There are lots of techniques that can be used in this project. Willing to contribute? Check the list below, then make a merge request and we can have a meeting to discuss:
 
-- ❗ Add **Dependency Inversions** with interfaces [DONE]
-- ❗ Use the **Option Pattern**
-- ❗ Complete CRUD and add **delete** and **update** APIs [DONE]
 - ❗ Implement **Logout API**, handle token expiration, and create a custom **Authorize** attribute
 - ❗ Add **pagination** to the Todo List Get API
 - ❗ Add **Error handling** with HTTP status codes
@@ -49,6 +46,4 @@ This repository is packed with:
 
 ---
 
-
----
 
