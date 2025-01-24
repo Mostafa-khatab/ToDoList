@@ -1,11 +1,10 @@
-﻿using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using ToDoList.Models;
-using System.Security.Cryptography;
+using Microsoft.AspNetCore.Identity;
 
 namespace ToDoList.Controllers
 {
@@ -13,86 +12,90 @@ namespace ToDoList.Controllers
     [ApiController]
     public class UsersController : ControllerBase
     {
-        private readonly JwtOptions _jwtOptions;
-        private readonly AppDbContext _db;
+        private readonly IConfiguration conf;
+        private readonly SignInManager<AppUser> _signInManager;
+        private readonly ITokenServices _tokenService;
+        public readonly UserManager<AppUser> _userManager;
 
-        public UsersController(JwtOptions jwtOptions, AppDbContext db)
+        public UsersController(UserManager<AppUser> userManager, IConfiguration configration, SignInManager<AppUser> signInManager, ITokenServices tokenService)
         {
-            _jwtOptions = jwtOptions;
-            _db = db;
+            _userManager = userManager;
+            conf = configration;
+            _signInManager = signInManager;
+            _tokenService = tokenService;
         }
 
+
+
         [HttpPost("Register")]
-        public async Task<IActionResult> Register([FromBody] Users request)
+        public async Task<IActionResult> Register([FromBody] RegisterDto register)
         {
-            if (request == null || string.IsNullOrEmpty(request.UserName) || string.IsNullOrEmpty(request.Password))
+            try
             {
-                return BadRequest("Username and Password are required.");
-            }
 
-            // Check if user already exists
-            if (_db.Users.Any(u => u.UserName == request.UserName))
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+                var user = new AppUser
+                {
+                    UserName = register.UserName,
+                    Email = register.Email,
+                };
+
+                var createUser = await _userManager.CreateAsync(user, register.Password);
+
+                if (createUser.Succeeded)
+                {
+                    var roleResult = await _userManager.AddToRoleAsync(user, "User");
+                    if (roleResult.Succeeded)
+                    {
+                        return Ok(_tokenService.CreatToken(user));
+                    }
+                    else
+                    {
+                        return StatusCode(500, roleResult.Errors);
+                    }
+                }
+                else
+                {
+                    return StatusCode(500, createUser.Errors);
+                }
+
+
+            }
+            catch (Exception e)
             {
-                return BadRequest("User already exists.");
+                return StatusCode(500, e.InnerException?.Message);
             }
-
-            request.Password = HashPassword(request.Password);
-
-            await _db.Users.AddAsync(request);
-            await _db.SaveChangesAsync();
-            return Ok("User registered successfully.");
         }
 
         [HttpPost("Login")]
-        public async Task<IActionResult> Login([FromBody] Users request)
+        public async Task<IActionResult> Login(LoginDto Login)
         {
-            if (request == null || string.IsNullOrEmpty(request.UserName) || string.IsNullOrEmpty(request.Password))
+            if (!ModelState.IsValid)
             {
-                return BadRequest("Invalid authentication request.");
-            }
-
-            var user = _db.Users.FirstOrDefault(u => u.UserName == request.UserName);
-            if (user == null || !VerifyPassword(request.Password, user.Password))
-            {
-                return BadRequest("Username or Password is incorrect.");
-            }
-
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var key = Encoding.UTF8.GetBytes(_jwtOptions.Key);
-
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Issuer = _jwtOptions.Issuer,
-                Audience = _jwtOptions.Audience,
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256),
-                Subject = new ClaimsIdentity(new[]
+                foreach (var error in ModelState.Values.SelectMany(v => v.Errors))
                 {
-                    new Claim(ClaimTypes.NameIdentifier, user.UserName),
-                    new Claim(ClaimTypes.Email, "default@example.com"), 
-                    new Claim(ClaimTypes.Role, "User"), // Example: Add role-based claims
-                    new Claim(ClaimTypes.Name, user.UserName)
-                }),
-                Expires = DateTime.UtcNow.AddHours(1)
-            };
+                    ModelState.AddModelError(string.Empty, error.ErrorMessage);
+                }
+                return BadRequest(ModelState);
+            }
 
-            var securityToken = tokenHandler.CreateToken(tokenDescriptor);
-            var accessToken = tokenHandler.WriteToken(securityToken);
+            var user = await _userManager.FindByNameAsync(Login.UserName);
 
-            return Ok(new { AccessToken = accessToken });
+            if (user != null)
+            {
+
+
+                var resualt = await _signInManager.CheckPasswordSignInAsync(user, Login.Password, false);
+                if (resualt.Succeeded)
+                {
+                    return Ok(_tokenService.CreatToken(user));
+                }
+            }
+            return Unauthorized(new { Message = "Invalid username or password" });
         }
 
-        private string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = Encoding.UTF8.GetBytes(password);
-            var hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash);
-        }
-
-        private bool VerifyPassword(string inputPassword, string storedPasswordHash)
-        {
-            var inputHash = HashPassword(inputPassword);
-            return inputHash == storedPasswordHash;
-        }
     }
 }

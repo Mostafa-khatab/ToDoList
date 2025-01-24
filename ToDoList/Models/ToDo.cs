@@ -19,9 +19,10 @@ namespace ToDoList.Models
         public string StatusId { get; set; }
         [ForeignKey("StatusId")]
         public Status Status { get; set; }
-        public string UserName { get; set; }
-        [ForeignKey("UserName")]
-        public Users User { get; set; }
+        public string UserId { get; set; }
+
+        [ForeignKey("UserId")]
+        public AppUser User { get; set; }
         public bool Overdue => StatusId == "open" && DueDate < DateTime.Today;
 
     }

@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using System.Linq.Expressions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ToDoList.Models;
@@ -12,38 +14,53 @@ namespace ToDoList.Controllers
     public class ToDoListController : ControllerBase
     {
         private readonly AppDbContext _db;
+        private readonly UserManager<AppUser> userManager;
 
-        public ToDoListController(AppDbContext db)
+        public ToDoListController(AppDbContext db, UserManager<AppUser> userManager)
         {
             _db = db;
+            this.userManager = userManager;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetMyToDoLists()
         {
-            var userName = User?.Identity?.Name;
-
-            if (string.IsNullOrEmpty(userName))
+            try
             {
-                return Unauthorized("User not authenticated.");
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+
+                var userId = userManager.GetUserId(User);
+
+                if (string.IsNullOrEmpty(userId))
+                {
+                    return Unauthorized("User not authenticated.");
+                }
+                var all = await _db.ToDos.Where(us => us.UserId == userId).ToListAsync();
+
+                var res = all.Select(item => new dtoToDo
+                {
+                    Id = item.Id,
+                    Description = item.Description,
+                    StatusId = item.StatusId,
+                    CategoryId = item.CategoryId,
+                    DueDate = item.DueDate
+                }).ToList();
+
+                if (res == null || !res.Any())
+                {
+                    return NotFound($"No ToDo items found for this user.");
+                }
+
+                return Ok(res);
             }
-            var all = await _db.ToDos.Where(us => us.UserName == userName).ToListAsync();
-
-            var res = all.Select(item => new dtoToDo
+            catch (Exception ex)
             {
-                Id = item.Id,
-                Description = item.Description,
-                StatusId = item.StatusId,
-                CategoryId = item.CategoryId,
-                DueDate = item.DueDate
-            }).ToList();
-
-            if (res == null || !res.Any())
-            {
-                return NotFound($"No ToDo items found for user '{userName}'.");
+                return BadRequest(ex.Message);
             }
 
-            return Ok(res);
         }
 
         [HttpGet("GetAllListesHaveSatusId/{StatusId}")]
@@ -52,9 +69,13 @@ namespace ToDoList.Controllers
         {
             try
             {
-                var userName = User?.Identity?.Name;
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+                var userId = userManager.GetUserId(User);
 
-                if (string.IsNullOrEmpty(userName))
+                if (string.IsNullOrEmpty(userId))
                 {
                     return Unauthorized("User not authenticated.");
                 }
@@ -64,7 +85,7 @@ namespace ToDoList.Controllers
                 if (exist == null)
                     return BadRequest("Enter Valid Status'{open , closed}'");
 
-                var all = await _db.ToDos.Where(x => x.StatusId == StatusId).Where(us => us.UserName == userName).ToListAsync();
+                var all = await _db.ToDos.Where(x => x.StatusId == StatusId).Where(us => us.UserId == userId).ToListAsync();
                 var res = all.Select(item => new dtoToDo
                 {
                     Id = item.Id,
@@ -72,7 +93,7 @@ namespace ToDoList.Controllers
                     StatusId = item.StatusId,
                     CategoryId = item.CategoryId,
                     DueDate = item.DueDate
-                }).ToList(); 
+                }).ToList();
                 return Ok(res);
             }
             catch (Exception ex)
@@ -86,16 +107,20 @@ namespace ToDoList.Controllers
         {
             try
             {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
                 var exist = await _db.Categories.FindAsync(CategoryId);
                 if (exist == null)
                     return BadRequest("Enter Valid Status'{work , home , ex , shop , call}'");
-                var userName = User?.Identity?.Name;
+                var userId = userManager.GetUserId(User);
 
-                if (string.IsNullOrEmpty(userName))
+                if (string.IsNullOrEmpty(userId))
                 {
                     return Unauthorized("User not authenticated.");
                 }
-                var all = await _db.ToDos.Where(x => x.CategoryId == CategoryId).Where(us => us.UserName == userName).ToListAsync();
+                var all = await _db.ToDos.Where(x => x.CategoryId == CategoryId).Where(us => us.UserId == userId).ToListAsync();
                 var res = all.Select(item => new dtoToDo
                 {
                     Id = item.Id,
@@ -109,7 +134,7 @@ namespace ToDoList.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(ex.InnerException?.Message);
             }
         }
 
@@ -118,9 +143,13 @@ namespace ToDoList.Controllers
         {
             try
             {
-                var userName = User?.Identity?.Name;
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+                var userId = userManager.GetUserId(User);
 
-                if (string.IsNullOrEmpty(userName))
+                if (userId == null)
                 {
                     return Unauthorized("User not authenticated.");
                 }
@@ -131,14 +160,8 @@ namespace ToDoList.Controllers
                     DueDate = dto.DueDate,
                     CategoryId = dto.CategoryId,
                     StatusId = dto.StatusId,
-                    UserName = userName
+                    UserId = userId
                 };
-                if (string.IsNullOrWhiteSpace(entity.Description) ||
-                    string.IsNullOrWhiteSpace(entity.CategoryId) ||
-                    string.IsNullOrWhiteSpace(entity.StatusId))
-                {
-                    return BadRequest("All fields are required.");
-                }
 
                 if (entity.Overdue == true)
                 {
@@ -148,7 +171,7 @@ namespace ToDoList.Controllers
                 var exist1 = await _db.Status.FindAsync(entity.StatusId);
                 var exist2 = await _db.Categories.FindAsync(entity.CategoryId);
 
-                if(exist1 == null)
+                if (exist1 == null)
                 {
                     return NotFound("There is no status id with this name");
                 }
@@ -165,7 +188,7 @@ namespace ToDoList.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new { Error = ex.Message });
+                return BadRequest(ex.InnerException?.Message);
             }
 
         }
@@ -176,6 +199,10 @@ namespace ToDoList.Controllers
         {
             try
             {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
                 var exist = await _db.ToDos.FindAsync(dto.Id);
                 if (exist == null)
                     return NotFound("This id not exist");
@@ -187,12 +214,6 @@ namespace ToDoList.Controllers
                     CategoryId = dto.CategoryId,
                     StatusId = dto.StatusId
                 };
-                if (string.IsNullOrWhiteSpace(entity.Description) ||
-                        string.IsNullOrWhiteSpace(entity.CategoryId) ||
-                        string.IsNullOrWhiteSpace(entity.StatusId))
-                {
-                    return BadRequest("All fields are required.");
-                }
 
                 if (entity.Overdue == true)
                 {
@@ -229,13 +250,25 @@ namespace ToDoList.Controllers
 
         public async Task<IActionResult> DeleteList(int id)
         {
-            var exist = await _db.ToDos.FindAsync(id);
-            if (exist == null)
-                return NotFound("This id not exist");
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ModelState);
+                }
+                var exist = await _db.ToDos.FindAsync(id);
+                if (exist == null)
+                    return NotFound("This id not exist");
 
-            _db.ToDos.Remove(exist);
-            await _db.SaveChangesAsync();
-            return Ok(id);
+                _db.ToDos.Remove(exist);
+                await _db.SaveChangesAsync();
+                return Ok(id);
+
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.Message);
+            }
         }
     }
 }
